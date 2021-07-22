@@ -71,35 +71,37 @@ def insert_pending_response(user_id):
 
 @app.route('/cc/send-pending', methods=['POST'])
 def send_messges():
-    members_list = client.users_list()["members"]
-    users  = list(filter(lambda u: not u["is_bot"] and not u["deleted"] and u["id"] != "USLACKBOT", members_list))
-    pending = get_pending_users(users)
-    recent = get_recent_users()
+    for page in client.users_list(limit=500):
+        members_list = page["members"]
+        users  = list(filter(lambda u: not u["is_bot"] and not u["deleted"] and u["id"] != "USLACKBOT", members_list))
+        pending = get_pending_users(users)
+        recent = get_recent_users()
 
-    for user in pending:
-        if user["id"] not in recent:
-            try:
-                user_id = user["id"]
-                user_name = user["name"]
-                app.logger.info("Sending message to user %s (%s)" % (user_name, user_id))
-                response = client.chat_postMessage(
-                    channel=user_id, 
-                    text="Código de Conducta",
-                    blocks='''[{
-                        "type": "section",
-                        "text": {
-                                "type": "mrkdwn",
-                                "text": "Hola! ¿Aceptas nuestro <https://github.com/lasdesistemas/codigo-de-conducta|Código de Conducta>?\nEn caso de no aceptar procederemos a eliminar tu usuario del Slack en los próximos días.\nSi detectas algún inconveniente para continuar por favor contacta a <https://lasdesistemas.slack.com/account/workspace-settings#admins|les admins>."}
-                            }, 
-                            {
-                                "type": "actions",
-                                "elements": [{"type": "button","text": {"type": "plain_text","text": "Sí! :tada:","emoji": true},"value": "click_yes"},
-                                             {"type": "button","text": {"type": "plain_text","text": "No :cry:","emoji": true},"value": "click_no"}]
-                            }]''')  
-                insert_pending_response(user_id)
+        for user in pending:
+            if user["id"] not in recent:
+                try:
+                    user_id = user["id"]
+                    user_name = user["name"]
+                    app.logger.info("Sending message to user %s (%s)" % (user_name, user_id))
+                    response = client.chat_postMessage(
+                        channel=user_id, 
+                        text="Código de Conducta",
+                        blocks='''[{
+                            "type": "section",
+                            "text": {
+                                    "type": "mrkdwn",
+                                    "text": "Hola! ¿Aceptas nuestro <https://github.com/lasdesistemas/codigo-de-conducta|Código de Conducta>?\nEn caso de no aceptar procederemos a eliminar tu usuario del Slack en los próximos días.\nSi detectas algún inconveniente para continuar por favor contacta a <https://lasdesistemas.slack.com/account/workspace-settings#admins|les admins>."}
+                                }, 
+                                {
+                                    "type": "actions",
+                                    "elements": [{"type": "button","text": {"type": "plain_text","text": "Sí! :tada:","emoji": true},"value": "click_yes"},
+                                                 {"type": "button","text": {"type": "plain_text","text": "No :cry:","emoji": true},"value": "click_no"}]
+                                }]''')  
+                    insert_pending_response(user_id)
 
-            except SlackApiError as e:
-                app.logger.error("Unable to send message to user %s (%s): %s" % (user_name, user_id, e))
+                except SlackApiError as e:
+                    app.logger.error("Unable to send message to user %s (%s): %s" % (user_name, user_id, e))
+    
     return "Mensajes enviados"
 
 if __name__ == '__main__':
